@@ -16,6 +16,7 @@
 #import "FoodModel.h"
 #import "ItemModel.h"
 #import "DBManager.h"
+#import "MyCartViewController.h"
 
 #define  NULL_CHECKER(X) [X isKindOfClass:[NSNull class]]?nil:X
 
@@ -656,7 +657,13 @@
 
 }
 
+-(void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
+{
 
+    MyCartViewController *mycary = segue.destinationViewController;
+    mycary.totalCost = totalCost;
+
+}
 
 
 @end

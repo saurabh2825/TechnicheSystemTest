@@ -97,6 +97,12 @@
    
     if (indexPath.section ==1) {
         TotalpriceTableViewCell *cell =[_tableView dequeueReusableCellWithIdentifier:@"secondCell"];
+        UILabel *totalCost = (UILabel *)[cell viewWithTag:101];
+        UILabel *totalSet = (UILabel *)[cell viewWithTag:102];
+        totalCost.text =[NSString stringWithFormat:@"%ld",(long)_totalCost];
+        totalSet.text =[NSString stringWithFormat:@"%ld",(long)_totalCost];
+
+        
         
         return cell;
         

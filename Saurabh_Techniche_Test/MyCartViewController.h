@@ -10,4 +10,7 @@
 
 @interface MyCartViewController : UIViewController
 
+@property(assign)NSInteger totalCost;
+
+
 @end
