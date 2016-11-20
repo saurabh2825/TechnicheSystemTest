@@ -29,15 +29,19 @@
     HomeModel *hModel;
     NSInteger secgementNumber;
     BOOL isUpdateCartTable;
-    DBManager *dbManager,*compareDB;
+    DBManager *dbManager,*compareDB,*cartCountDB, *priceDB;
     NSMutableArray *compareArr;
+    NSInteger count;
+    NSInteger totalCost;
 
 
 
 }
 @property (weak, nonatomic) IBOutlet UITableView *tableView;
 @property (nonatomic, strong) HMSegmentedControl *segmentedControl;
+@property (weak, nonatomic) IBOutlet UILabel *cartcountLabel;
 
+@property (weak, nonatomic) IBOutlet UIButton *bottomCartButton;
 
 @end
 
@@ -54,23 +58,31 @@
     foodItem =[[NSMutableArray alloc]init];
     totalArr =[[NSMutableArray alloc]init];
     menuARR =[[NSMutableArray alloc]init];
-   
+    count = 0;
+    totalCost= 0;
     dbManager =[[DBManager alloc]initWithFileName:@"ABB.db"];
     dbManager.delegate = self;
     
-    NSString *tableCreateQuery = @"create table if not exists cart (id INTEGER PRIMARY KEY AUTOINCREMENT, productName TEXT, price TEXT, quentity INTEGER, code TEXT)";
+    NSString *tableCreateQuery = @"create table if not exists cart (id INTEGER PRIMARY KEY, productName TEXT, price TEXT, quentity INTEGER, code TEXT)";
     
     [dbManager createTableForQuery:tableCreateQuery];
-    
-
-    
-    
     networkManager=[NetworkHandlerParseData shareManger];
-
     [self callServicesForData];
+
     
 
 }
+
+-(void)viewWillAppear:(BOOL)animated
+{
+    [super viewWillAppear:animated];
+    [self ShowDatainCartButton];
+    selectedIndexPath = nil;
+    [self.tableView reloadData];
+
+}
+
+
 
 - (void)didReceiveMemoryWarning {
     [super didReceiveMemoryWarning];
@@ -112,8 +124,17 @@
         self.segmentedControl.backgroundColor = [UIColor colorWithHexString:@"#98B926"];
         
         self.segmentedControl.selectedTitleTextAttributes = @{NSForegroundColorAttributeName : [UIColor whiteColor]};
+        
+        
+        [[UISegmentedControl appearance] setTitleTextAttributes:@{NSForegroundColorAttributeName : [UIColor whiteColor]} forState:UIControlStateSelected];
+
+        
+        
+        
         self.segmentedControl.selectionIndicatorColor = [UIColor colorWithHexString:@"#E8A514"];
-        self.segmentedControl.titleTextAttributes =@{ NSFontAttributeName :[UIFont fontWithName:@"HelveticaNeue" size:13.0f]};
+        
+        
+        self.segmentedControl.titleTextAttributes =@{ NSFontAttributeName :[UIFont fontWithName:@"HelveticaNeue" size:15.0f]};
         
         self.segmentedControl.selectionStyle = HMSegmentedControlSelectionStyleFullWidthStripe;
         self.segmentedControl.selectionIndicatorLocation = HMSegmentedControlSelectionIndicatorLocationDown;
@@ -184,6 +205,8 @@
         NSLog(@"food name is %@",cell.foodName.text  );
         cell.priceLabel.text =[NSString stringWithFormat:@"₹ %@",fModel.foodCost];
         cell.quentityLabel.text=[NSString stringWithFormat:@"%ld",(long)fModel.cartCount];
+        cell.setNumber.text=[NSString stringWithFormat:@"%@",fModel.foodWeight];
+        
         cell.addButton.tag = indexPath.row;
         cell.removeButton.tag = indexPath.row;
         
@@ -273,7 +296,8 @@
 {
         ItemModel *aModel =foodItem[decrementButton.tag-1];;
         aModel.cartCount -=1;
-    
+    cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:decrementButton.tag inSection:selectedIndexPath.section]];
+
         if (aModel.cartCount<0) {
             aModel.cartCount =0;
         }
@@ -291,13 +315,20 @@
 
     
     
-    cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:decrementButton.tag inSection:0]];
     cell.quentityLabel.text=[NSString stringWithFormat:@"%ld",(long)aModel.cartCount];
     
     if (aModel.cartCount==0) {
         [self deletCartItem:aModel];
     }
 
+    [self ShowDatainCartButton];
+   
+    
+    priceDB =[[DBManager alloc]initWithFileName:@"ABB.db"];
+    priceDB.delegate = self;
+    NSString *queryString = @"SELECT * FROM cart";
+    [priceDB getDataForQuery:queryString];
+    
 
 
 }
@@ -311,7 +342,7 @@
         aModel.cartCount =0;
     }
     
-    cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:incrementButton.tag inSection:0]];
+    cell = [self.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:incrementButton.tag inSection:selectedIndexPath.section]];
     cell.quentityLabel.text=[NSString stringWithFormat:@"%ld",(long)aModel.cartCount];
     
     if (aModel.cartCount > 0) {
@@ -326,7 +357,14 @@
 
     
     [self getCartDataFromCartTable:aModel];
-    
+    [self ShowDatainCartButton];
+
+   
+    priceDB =[[DBManager alloc]initWithFileName:@"ABB.db"];
+    priceDB.delegate = self;
+    NSString *queryString = @"SELECT * FROM cart";
+    [priceDB getDataForQuery:queryString];
+
 
 
 }
@@ -413,7 +451,7 @@
         aModel.foodName = NULL_CHECKER(subMenuDic[@"name"]);
         aModel.foodCost = NULL_CHECKER(subMenuDic[@"price"]);
         aModel.imageCode = NULL_CHECKER(subMenuDic[@"image"]);
-        aModel.foodWeight = NULL_CHECKER(subMenuDic[@"stock"]);
+        aModel.foodWeight = NULL_CHECKER(subMenuDic[@"unit"]);
         aModel.code = NULL_CHECKER(subMenuDic[@"code"]);
         [foodItem addObject:aModel];
         
@@ -491,8 +529,17 @@
 
 
 
--(void)ShowDatainCartButton:(ItemModel *)aModel
+-(void)ShowDatainCartButton
 {
+    
+ 
+        NSString *queryString = @"SELECT Count(*) FROM cart";
+        cartCountDB =[[DBManager alloc]initWithFileName:@"ABB.db"];
+        cartCountDB.delegate = self;
+        [cartCountDB getDataForQuery:queryString];
+    
+    
+    
     
     
     
@@ -526,16 +573,58 @@
 - (void)DBManager:(DBManager *)manager gotSqliteStatment:(sqlite3_stmt *)statment
 {
     //This will give latest entry. So only one value is needed here. No need to loop through all.
+  
+    
+    if ([manager isEqual:cartCountDB]) {
+        while (sqlite3_step(statment) == SQLITE_ROW){
+          
+             count = sqlite3_column_int(statment, 0);
+
+            if (count==0) {
+                self.cartcountLabel.hidden = YES;
+                self.bottomCartButton.hidden = YES;
+                
+            }else {
+            
+                self.cartcountLabel.hidden = NO;
+                self.bottomCartButton.hidden = NO;
+                
+
+            NSLog(@"%ld",(long)count);
+//            self.cartcountLabel.text =[NSString stringWithFormat:@"%ld item(s) in cart(₹ %ld)",(long)count,(long)totalprice];
+            
+            }
+        }
+
+    }
+    
+    
+    
     if ([manager isEqual:compareDB]) {
         compareArr = [[NSMutableArray alloc] init];
+         totalCost = 0;
         while (sqlite3_step(statment) == SQLITE_ROW)
         {
             ItemModel *aModel = [[ItemModel alloc] init];
             aModel.code = [NSString stringWithUTF8String:(const char *)sqlite3_column_text(statment, 4)];
-            aModel.cartCount =sqlite3_column_int(statment, 3);;
+            aModel.cartCount =sqlite3_column_int(statment, 3);
+            aModel.foodCost = [NSString stringWithUTF8String:(const char *)sqlite3_column_text(statment, 2)];
             [compareArr addObject:aModel];
+           
+            NSInteger cost1 = aModel.cartCount;
+            NSInteger foodCost = aModel.foodCost.integerValue;
+             totalCost =  totalCost +( cost1 *foodCost);
+        
         }
+    
+    
+        NSLog(@"%ld",(long)totalCost);
+    
+    
+    
+    
     }
+  
     if (sqlite3_step(statment) == SQLITE_ROW)
     {
         NSLog(@"data present");
@@ -544,9 +633,27 @@
     }else
     {
         isUpdateCartTable = NO;
+    }
+    
+
+    if ([manager isEqual:priceDB]) {
+        
+        while (sqlite3_step(statment) == SQLITE_ROW)
+        {
+            
+            NSInteger cost1 =sqlite3_column_int(statment, 3);
+           NSString *foodCost = [NSString stringWithUTF8String:(const char *)sqlite3_column_text(statment, 2)];
+            totalCost =  totalCost +( cost1 *foodCost.integerValue);
+            
+        }
         
     }
     
+    
+    
+
+ self.cartcountLabel.text =[NSString stringWithFormat:@"%ld item(s) in cart(₹ %ld)",(long)count,(long)totalCost];
+
 }
 
 

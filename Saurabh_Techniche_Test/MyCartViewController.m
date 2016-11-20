@@ -13,7 +13,7 @@
 #import "TotalpriceTableViewCell.h"
 
 
-@interface MyCartViewController ()<DBManagerDelegate>
+@interface MyCartViewController ()<DBManagerDelegate,UITableViewDataSource,UITableViewDelegate>
 {
 
     DBManager *dbManager;
@@ -62,11 +62,29 @@
     [self.navigationController popViewControllerAnimated:YES];
 }
 
+-(NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    return 2;
+}
+
+
+
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
 {
     
-    return cartArr.count;
+   
+    if (section==0) {
+        return cartArr.count;
+    }else
+    {
+        if (cartArr.count) {
+            return 1;
+
+        } else {
+            return 0;
+        }
+    }
    
 }
 
@@ -76,6 +94,15 @@
 
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
 {
+   
+    if (indexPath.section ==1) {
+        TotalpriceTableViewCell *cell =[_tableView dequeueReusableCellWithIdentifier:@"secondCell"];
+        
+        return cell;
+        
+    
+    }else
+    {
     ItemModel *aModel =cartArr[indexPath.row];
     cartCell = [_tableView dequeueReusableCellWithIdentifier:@"firstCell"];
         cartCell.foodNameLabel.text = aModel.foodName;
@@ -94,10 +121,8 @@
     cartCell.amountholderView.layer.cornerRadius = 13;
     cartCell.amountholderView.layer.masksToBounds = YES;
     [self totalCostCalculationMethod:totalprice];
-    
-    
     return cartCell;
-        
+    }
     
 }
 
@@ -112,14 +137,11 @@
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
 {
-    if (indexPath.row == cartArr.count) {
+    if (indexPath.section==0) {
+        return 100;
+    } else {
         return 180;
     }
-    else
-    {
-        return 105;
-    }
-    return 80;
 }
 
 -(void)incrementBtnClick:(UIButton *)aIncBtn
