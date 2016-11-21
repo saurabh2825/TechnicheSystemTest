@@ -2,7 +2,7 @@
 //  MyCartViewController.m
 //  Saurabh_Techniche_Test
 //
-//  Created by Amit Kumar on 2016-11-18.
+//  Created by Saurabh Suman on 2016-11-18.
 //  Copyright © 2016 Saurabh. All rights reserved.
 //
 
